@@ -31,7 +31,7 @@ A simple library management system built using Flask, SQLAlchemy, and SQLite. Th
 1. **Clone the Repository**:
 
     ```bash
-    git clone <https://github.com/dopeWeb/Library-Management-System-API.git>
+     clone https://github.com/dopeWeb/-Library-Management-System.git
     ```
 
 2. **Create and Activate a Virtual Environment**:
