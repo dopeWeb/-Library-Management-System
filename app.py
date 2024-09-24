@@ -74,9 +74,7 @@ def seed_data():
 
 @app.route('/add_customer', methods=['POST'])
 def add_customer():
-    print("Add Customer endpoint hit")  # Debug line
     data = request.json
-    print(f"Data received: {data}")  # Debug line
 
     # Normalize field names to lowercase
     normalized_data = {
@@ -85,15 +83,12 @@ def add_customer():
         'age': data.get('age') or data.get('Age'),
         'email': data.get('email') or data.get('Email')
     }
-    print(f"Normalized data: {normalized_data}")  # Debug line
 
     # Ensure all required fields are present
     if not normalized_data['name'] or not normalized_data['city'] or normalized_data['age'] is None or not normalized_data['email']:
-        print("Missing required fields")  # Debug line
         return jsonify({"message": "Missing required fields."}), 400
 
     if Customers.query.filter_by(email=normalized_data['email']).first():
-        print("Customer with this email already exists")  # Debug line
         return jsonify({"message": "Customer with this email already exists."}), 400
 
     new_customer = Customers(
@@ -106,14 +101,11 @@ def add_customer():
     
     try:
         db.session.commit()
-        print(f"Customer '{normalized_data['name']}' added successfully")  # Debug line
     except Exception as e:
         db.session.rollback()
-        print(f"Error occurred while adding the customer: {str(e)}")  # Debug line
         return jsonify({"message": "An error occurred while adding the customer: " + str(e)}), 500
 
     return jsonify({"message": f"Customer '{normalized_data['name']}' added successfully."}), 201
-
 
 
 
@@ -286,20 +278,25 @@ def display_all_customers():
 
 @app.route('/display_all_loans', methods=['GET'])
 def display_all_loans():
-    loans = Loan.query.all()
+    # Query to get loans along with associated customers and books
+    loans = db.session.query(Loan, Customers, Books).join(Customers).join(Books).all()
     result = []
     
-    for loan in loans:
+    for loan, customer, book in loans:
         loan_date = loan.loan_date.astimezone(tz.tzlocal())
         return_date = loan.return_date.astimezone(tz.tzlocal()) if loan.return_date else "Not returned yet"
+        
         result.append({
-            "custId": loan.cust_id,
-            "bookId": loan.book_id,
+            "custId": customer.id,
+            "customerName": customer.name,  # Add customer name
+            "bookId": book.id,
+            "bookName": book.name,  # Add book name
             "loanDate": loan_date.isoformat(),
             "returnDate": return_date if isinstance(return_date, str) else return_date.isoformat()
         })
 
     return jsonify(result), 200
+
 
 
 @app.route('/late_loans', methods=['GET'])
@@ -323,6 +320,7 @@ def late_loans():
         result.append({
             "book_id": book.id,
             "book_name": book.name,
+            "book_type": book.type,  # Add book type here
             "customer_id": customer.id,
             "customer_name": customer.name,
             "loan_date": loan_date_local.isoformat(),
@@ -330,6 +328,7 @@ def late_loans():
         })
 
     return jsonify(result), 200
+
 
 
 @app.route('/find_book_by_name', methods=['POST'])
