@@ -4,9 +4,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask
 from flask_cors import CORS
 from dateutil import tz
-import logging
 
-logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
@@ -116,8 +114,8 @@ def add_customer():
 @app.route('/add_book', methods=['POST'])
 def add_book():
     data = request.json
-    logging.debug(f"Received data: {data}")
 
+    # Normalize field names to lowercase
     normalized_data = {
         'name': data.get('name') or data.get('Name'),
         'author': data.get('author') or data.get('Author'),
@@ -125,6 +123,7 @@ def add_book():
         'type': data.get('type') or data.get('Type')
     }
 
+    # Ensure all required fields are present
     if not normalized_data['name'] or not normalized_data['author'] or not normalized_data['yearPublished'] or normalized_data['type'] is None:
         return jsonify({"message": "Missing required fields."}), 400
 
@@ -134,23 +133,10 @@ def add_book():
     if normalized_data['type'] not in [1, 2, 3]:
         return jsonify({"message": "Invalid book type."}), 400
 
-    new_book = Books(
-        name=normalized_data['name'],
-        author=normalized_data['author'],
-        year_published=normalized_data['yearPublished'],
-        type=normalized_data['type']
-    )
-    
-    try:
-        db.session.add(new_book)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error saving book: {e}")
-        return jsonify({"message": "An error occurred while adding the book."}), 500
-
+    new_book = Books(name=normalized_data['name'], author=normalized_data['author'], year_published=normalized_data['yearPublished'], type=normalized_data['type'])
+    db.session.add(new_book)
+    db.session.commit()
     return jsonify({"message": f"Book '{normalized_data['name']}' added successfully."}), 201
-
 
 
 
