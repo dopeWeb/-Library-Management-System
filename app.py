@@ -596,6 +596,110 @@ def check_customer_exists():
 
 
 
+@app.route('/find_loaned_books', methods=['GET'])
+def find_loaned_books():
+    book_name = request.args.get('name')  # Get book name from query parameters
+
+    # Use select_from to clarify the starting point for joins
+    query = (
+        db.session.query(Books, Loan, Customers)
+        .select_from(Books)  # Explicitly start from Books
+        .join(Loan)          # Join Loan table
+        .join(Customers)     # Join Customers table
+        .filter(
+            Loan.return_date == None,
+            Books.deleted == False
+        )
+    )
+
+    if book_name:
+        # If a book name is provided, filter by it
+        query = query.filter(Books.name.ilike(f"%{book_name}%"))
+
+    find_loaned_books_query = query.all()
+
+    if not find_loaned_books_query:
+        return jsonify({"message": "This book is currently loaned out."}), 404
+
+    # Print the fetched data for debugging
+    print(find_loaned_books_query)
+
+    result = []
+    for book, loan, customer in find_loaned_books_query:
+        # Debugging line to print detailed info
+        print(f"Book: {book.name}, Author: {book.author}, Year Published: {book.year_published}, Type: {book.type}, Loan Date: {loan.loan_date}, Customer: {customer.name}")
+
+        result.append({
+            "book_id": book.id,
+            "book_name": book.name,
+            "author": book.author,
+            "year_published": book.year_published,
+            "type": book.type,
+            "loan_date": loan.loan_date.isoformat(),
+            "customer": {
+                "name": customer.name,
+                "city": customer.city,
+                "age": customer.age,
+                "email": customer.email
+            }
+        })
+
+    return jsonify(result), 200
+
+
+
+@app.route('/customers_with_loaned_books', methods=['GET'])
+def customers_with_loaned_books():
+    try:
+        customer_name = request.args.get('name')
+
+        if not customer_name:
+            return jsonify({"message": "Please provide a name."}), 400
+
+        # Use select_from to clarify the starting point for joins
+        query = (
+            db.session.query(Customers, Loan, Books)
+            .select_from(Customers)  # Explicitly start from Customers
+            .join(Loan)               # Join Loan table
+            .join(Books)             # Join Books table
+            .filter(
+                Loan.return_date == None,
+                Customers.deleted == False,
+                Customers.name.ilike(f"%{customer_name}%")
+            )
+        )
+
+        customers_books_query = query.all()
+
+        if not customers_books_query:
+            return jsonify({"message": "This customer has 0 loaned books."}), 404
+
+        # Prepare the result with customer and book details
+        result = []
+        for customer, loan, book in customers_books_query:  # Unpacking the tuple
+            result.append({
+                "customer_name": customer.name,
+                "city": customer.city,
+                "age": customer.age,
+                "email": customer.email,
+                "book_id": book.id,
+                "book_name": book.name,
+                "book_type": book.type,
+                "loan_date": loan.loan_date.isoformat()  # Adjust according to your Loan model
+            })
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500  # Return the error message
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
