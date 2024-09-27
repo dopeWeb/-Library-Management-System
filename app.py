@@ -90,7 +90,7 @@ def add_customer():
         return jsonify({"message": "Missing required fields."}), 400
 
     if Customers.query.filter_by(email=normalized_data['email']).first():
-        return jsonify({"message": "Customer with this email already exists."}), 400
+        return jsonify({"message": "Customer with this email already exists or marked as deleted."}), 400
 
     new_customer = Customers(
         name=normalized_data['name'],
@@ -107,7 +107,6 @@ def add_customer():
         return jsonify({"message": "An error occurred while adding the customer: " + str(e)}), 500
 
     return jsonify({"message": f"Customer '{normalized_data['name']}' added successfully."}), 201
-
 
 
 
@@ -128,7 +127,7 @@ def add_book():
         return jsonify({"message": "Missing required fields."}), 400
 
     if Books.query.filter_by(name=normalized_data['name']).first():
-        return jsonify({"message": "Book with this name already exists."}), 400
+        return jsonify({"message": "Book with this name already exists or marked as deleted."}), 400
     
     if normalized_data['type'] not in [1, 2, 3]:
         return jsonify({"message": "Invalid book type."}), 400
@@ -137,7 +136,6 @@ def add_book():
     db.session.add(new_book)
     db.session.commit()
     return jsonify({"message": f"Book '{normalized_data['name']}' added successfully."}), 201
-
 
 
 
@@ -500,6 +498,101 @@ def get_customer_id_by_email():
     if customer:
         return jsonify({"id": customer.id}), 200
     return jsonify({"message": "Customer not found."}), 404
+
+
+
+
+@app.route('/update_book', methods=['PUT'])
+def update_book():
+    data = request.json
+    book_name = data.get('bookName')
+    updated_data = {
+        'name': data.get('newName'),
+        'author': data.get('author'),
+        'yearPublished': data.get('yearPublished'),
+        'type': data.get('type')
+    }
+
+    # Validate input
+    if not book_name:
+        return jsonify({"message": "Book name is required."}), 400
+
+    # Get the book based on the name
+    book = Books.query.filter_by(name=book_name, deleted=False).first()
+    if not book:
+        return jsonify({"message": "Book not found."}), 404
+
+    # Check if the book is currently loaned out
+    if Loan.query.filter_by(book_id=book.id, return_date=None).first():
+        return jsonify({"message": "Cannot update book. It is currently loaned out."}), 400
+
+    # Update fields if they are provided
+    if updated_data['name']:
+        book.name = updated_data['name']
+    if updated_data['author']:
+        book.author = updated_data['author']
+    if updated_data['yearPublished']:
+        book.year_published = updated_data['yearPublished']
+    if updated_data['type'] is not None:
+        book.type = updated_data['type']
+
+    db.session.commit()
+    return jsonify({"message": f"Book '{book_name}' updated successfully."}), 200
+
+
+@app.route('/update_customer', methods=['PUT'])
+def update_customer():
+    data = request.json
+    customer_email = data.get('customerEmail')
+    updated_data = {
+        'name': data.get('name'),
+        'city': data.get('city'),
+        'age': data.get('age'),
+        'newEmail': data.get('newEmail')
+    }
+
+    # Validate input
+    if not customer_email:
+        return jsonify({"message": "Customer email is required."}), 400
+
+    # Get the customer based on the email
+    customer = Customers.query.filter_by(email=customer_email, deleted=False).first()
+    if not customer:
+        return jsonify({"message": "Customer not found."}), 404
+
+    # Check if the customer has any loaned books
+    if Loan.query.filter_by(cust_id=customer.id, return_date=None).first():
+        return jsonify({"message": "Cannot update customer. They have books currently loaned out."}), 400
+
+    # Update fields if they are provided
+    if updated_data['name']:
+        customer.name = updated_data['name']
+    if updated_data['city']:
+        customer.city = updated_data['city']
+    if updated_data['age'] is not None:
+        customer.age = updated_data['age']
+    if updated_data['newEmail']:
+        customer.email = updated_data['newEmail']
+
+    db.session.commit()
+    return jsonify({"message": f"Customer '{customer_email}' updated successfully."}), 200
+
+
+@app.route('/check_book_exists', methods=['POST'])
+def check_book_exists():
+    data = request.json
+    new_name = data.get('newName')
+    exists = Books.query.filter_by(name=new_name, deleted=False).first() is not None
+    return jsonify({"exists": exists}), 200
+
+
+
+@app.route('/check_customer_exists', methods=['POST'])
+def check_customer_exists():
+    data = request.json
+    new_email = data.get('newEmail')
+    exists = Customers.query.filter_by(email=new_email, deleted=False).first() is not None
+    return jsonify({"exists": exists}), 200
 
 
 
