@@ -37,8 +37,9 @@ A simple library management system built using Flask, SQLAlchemy, and SQLite. Th
 2. **Create and Activate a Virtual Environment**:
 
     ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    pip install virtualenv
+    python  -m virtualenv env
+    .\env\Scripts\activate  # On Mac, use `source venv/bin/activate`
     ```
 
 3. **Install Dependencies**:
